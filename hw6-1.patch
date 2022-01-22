@@ -1,0 +1,249 @@
+diff --git a/include/LevelGUI.h b/include/LevelGUI.h
+index db40fbe..ef7d958 100644
+--- a/include/LevelGUI.h
++++ b/include/LevelGUI.h
+@@ -1,10 +1,13 @@
+ #pragma once
+ 
+ #include <stdint.h>
++#include <queue>
++#include <string>
+ 
+ #include "GameObject.h"
++#include "Tank.h"
+ 
+-class LevelGUI : public GameObject {
++class LevelGUI : public GameObject, public Colleague {
+ public:
+ 
+     LevelGUI() : bombsNumber(0), score(0), passedTime(0), fps(0), height(0) { }
+@@ -18,6 +21,11 @@ public:
+ 
+     void Draw() const override;
+ 
++
++    virtual void BeNotified(std::string message) override;
++    LevelGUI(Mediator* pMed) : pMediator(pMed) { }
++    Mediator* pMediator;
++
+ private:
+ 
+     uint16_t height;
+@@ -26,6 +34,10 @@ private:
+     uint64_t passedTime, fps;
+     uint16_t bombsNumber;
+     int16_t score;
++
++    std::queue<std::string> messages;
++    std::string mess;
++
+ };
+ 
+ 
+diff --git a/include/SBomber.h b/include/SBomber.h
+index 3ce1b9c..1de98e8 100644
+--- a/include/SBomber.h
++++ b/include/SBomber.h
+@@ -25,6 +25,8 @@ public:
+     void MoveObjects();
+     void CheckObjects();
+ 
++    Mediator med;
++
+ private:
+ 
+     void CheckPlaneAndLevelGUI();
+@@ -50,4 +52,4 @@ private:
+     uint64_t startTime, finishTime, passedTime;
+     uint16_t bombsNumber, deltaTime, fps;
+     int16_t score;
+-};
+\ No newline at end of file
++};
+diff --git a/include/Tank.h b/include/Tank.h
+index 34b3d5c..945eb23 100644
+--- a/include/Tank.h
++++ b/include/Tank.h
+@@ -4,7 +4,40 @@
+ 
+ #include "DestroyableGroundObject.h"
+ 
+-class Tank : public DestroyableGroundObject
++#include <iostream>
++
++#include <string>
++#include <vector>
++
++
++class Mediator;
++
++class Colleague {
++public:
++    virtual void BeNotified( std::string message) = 0;
++    static Mediator* pMediator;
++};
++
++class Mediator {
++public:
++
++    void AddColleague(Colleague* pNewColleague) {
++        v.push_back(pNewColleague);
++    };
++
++    void Notify(const Colleague* from, std::string message) {
++            for (Colleague* pElem : v)
++            {
++                if (pElem != from)
++                        pElem->BeNotified(message);
++            }
++    }
++private:
++    std::vector<Colleague*> v;
++
++};
++
++class Tank : public DestroyableGroundObject, public Colleague
+ {
+ public:
+ 
+@@ -14,8 +47,22 @@ public:
+ 
+ 	void Draw() const override;
+ 
++
++    virtual void BeNotified(std::string message) override;
++    Tank(Mediator* pMed) : pMediator(pMed) { };
++    Mediator* pMediator;
++
++    std::string mes[5] = {
++      "dive, dive",
++      "i shoot",
++      "fire, fire",
++      "you hit",
++      "the bombs are over"
++    };
++
+ private:
+ 
+ 	const uint16_t score = 30;
++
+ };
+ 
+diff --git a/src/Bomb.cpp b/src/Bomb.cpp
+index 4008eaa..13fc4c3 100644
+--- a/src/Bomb.cpp
++++ b/src/Bomb.cpp
+@@ -5,5 +5,5 @@
+ void Bomb::Draw() const {
+   //ScreenSingleton::getInstance().SetColor(CC_LightMagenta);
+   ScreenSingleton::getInstance().GotoXY(x, y);
+-  std::cout << "*";
++  std::cout << "*";  
+ }
+diff --git a/src/LevelGUI.cpp b/src/LevelGUI.cpp
+index 0cc2a88..3dc4c4f 100644
+--- a/src/LevelGUI.cpp
++++ b/src/LevelGUI.cpp
+@@ -37,6 +37,16 @@ void LevelGUI::Draw() const
+     std::cout << "BombsNum: " << bombsNumber;
+     ScreenSingleton::getInstance().GotoXY(62, 1);
+     std::cout << "Score: " << score;
++
++    if (!messages.empty()) {
++        //mess = messages.back();
++    //};
++
++    ScreenSingleton::getInstance().GotoXY(1, 2/*ScreenSingleton::getInstance().GetMaxY()-1*/);
++    ScreenSingleton::getInstance().SetColor(CC_Yellow);
++    std::cout << messages.back();//mess;
++
++    };
+ }
+ 
+ void  LevelGUI::SetParam(uint64_t passedTimeNew, uint64_t fpsNew, uint16_t bombsNumberNew, int16_t scoreNew)
+@@ -46,3 +56,7 @@ void  LevelGUI::SetParam(uint64_t passedTimeNew, uint64_t fpsNew, uint16_t bombs
+     bombsNumber = bombsNumberNew;
+     score = scoreNew;
+ }
++
++void LevelGUI::BeNotified(std::string message) {
++    messages.push(message);
++};
+diff --git a/src/SBomber.cpp b/src/SBomber.cpp
+index 4c0eb99..55cbf13 100644
+--- a/src/SBomber.cpp
++++ b/src/SBomber.cpp
+@@ -10,6 +10,9 @@
+ #include <chrono>
+ #include <thread>
+ 
++#include <ctime>
++#include <cstdlib>
++
+ SBomber::SBomber()
+   : exitFlag(false), startTime(0), finishTime(0), deltaTime(0), passedTime(0),
+     fps(0), bombsNumber(10), score(0) {
+@@ -21,7 +24,10 @@ SBomber::SBomber()
+   p->SetPos(5, 10);
+   vecDynamicObj.push_back(p);
+ 
+-  LevelGUI* pGUI = new LevelGUI;
++  srand(time(0));
++
++  LevelGUI* pGUI = new LevelGUI(&med);
++  med.AddColleague(pGUI);
+   pGUI->SetParam(passedTime, fps, bombsNumber, score);
+   const uint16_t maxX = ScreenSingleton::getInstance().GetMaxX();
+   const uint16_t maxY = ScreenSingleton::getInstance().GetMaxY();
+@@ -39,12 +45,14 @@ SBomber::SBomber()
+   pGr->SetWidth(width - 2);
+   vecStaticObj.push_back(pGr);
+ 
+-  Tank* pTank = new Tank;
++  Tank* pTank = new Tank(&med);
++  med.AddColleague(pTank);
+   pTank->SetWidth(13);
+   pTank->SetPos(30, groundY - 1);
+   vecStaticObj.push_back(pTank);
+ 
+-  pTank = new Tank;
++  pTank = new Tank(&med);
++  med.AddColleague(pTank);
+   pTank->SetWidth(13);
+   pTank->SetPos(50, groundY - 1);
+   vecStaticObj.push_back(pTank);
+@@ -157,6 +165,7 @@ std::vector<DestroyableGroundObject*> SBomber::FindDestoyableGroundObjects() con
+     pTank = dynamic_cast<Tank*>(vecStaticObj[i]);
+     if (pTank != nullptr) {
+       vec.push_back(pTank);
++      pTank->pMediator->Notify(pTank, pTank->mes[rand()%5]);
+       continue;
+     }
+ 
+diff --git a/src/Tank.cpp b/src/Tank.cpp
+index ab0b881..2b9f807 100644
+--- a/src/Tank.cpp
++++ b/src/Tank.cpp
+@@ -5,6 +5,8 @@
+ #include "include/MyTools.h"
+ #include "include/ScreenSingleton.h"
+ 
++#include <cstdlib>
++
+ using namespace std;
+ using namespace MyTools;
+ 
+@@ -42,4 +44,13 @@ void Tank::Draw() const
+ 	cout << "    #####";
+ 	ScreenSingleton::getInstance().GotoXY(x,y);
+ 	cout << " ###########";
++
++//    pMediator->Notify(this, mes[rand()%5]);
+ }
++
++void Tank::BeNotified(std::string message) {
++
++    //Nothing
++    //std::cout << message;
++
++};
