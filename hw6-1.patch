@@ -61,7 +61,7 @@ index 3ce1b9c..1de98e8 100644
 \ No newline at end of file
 +};
 diff --git a/include/Tank.h b/include/Tank.h
-index 34b3d5c..945eb23 100644
+index 34b3d5c..9028d1e 100644
 --- a/include/Tank.h
 +++ b/include/Tank.h
 @@ -4,7 +4,40 @@
@@ -106,11 +106,13 @@ index 34b3d5c..945eb23 100644
  {
  public:
  
-@@ -14,8 +47,22 @@ public:
+@@ -14,8 +47,24 @@ public:
  
  	void Draw() const override;
  
-+
++    void SomeAction() {
++        pMediator->Notify(this, mes[rand()%5]);
++    };
 +    virtual void BeNotified(std::string message) override;
 +    Tank(Mediator* pMed) : pMediator(pMed) { };
 +    Mediator* pMediator;
@@ -170,7 +172,7 @@ index 0cc2a88..3dc4c4f 100644
 +    messages.push(message);
 +};
 diff --git a/src/SBomber.cpp b/src/SBomber.cpp
-index 4c0eb99..55cbf13 100644
+index 4c0eb99..8c68b3f 100644
 --- a/src/SBomber.cpp
 +++ b/src/SBomber.cpp
 @@ -10,6 +10,9 @@
@@ -212,11 +214,13 @@ index 4c0eb99..55cbf13 100644
    pTank->SetWidth(13);
    pTank->SetPos(50, groundY - 1);
    vecStaticObj.push_back(pTank);
-@@ -157,6 +165,7 @@ std::vector<DestroyableGroundObject*> SBomber::FindDestoyableGroundObjects() con
+@@ -157,6 +165,9 @@ std::vector<DestroyableGroundObject*> SBomber::FindDestoyableGroundObjects() con
      pTank = dynamic_cast<Tank*>(vecStaticObj[i]);
      if (pTank != nullptr) {
        vec.push_back(pTank);
-+      pTank->pMediator->Notify(pTank, pTank->mes[rand()%5]);
++
++      pTank->SomeAction();
++
        continue;
      }
  
