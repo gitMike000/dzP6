@@ -1,0 +1,140 @@
+diff --git a/include/Plane.h b/include/Plane.h
+index 1920bdd..318ceb6 100644
+--- a/include/Plane.h
++++ b/include/Plane.h
+@@ -9,7 +9,31 @@ public:
+ 
+     inline void ChangePlaneY(double dy) { yDirection += dy; }
+ 
++    virtual void DrawBody() const = 0;
++
++    virtual void DrawWings() const = 0;
++
++    virtual void DrawTail() const = 0;
++
+ private:
+ 
+ };
+ 
++class ColorPlane : public Plane {
++public:
++    void DrawBody() const override;
++
++    void DrawWings() const override;
++
++    void DrawTail() const override;
++};
++
++class BigPlane: public Plane {
++public:
++    void DrawBody() const override;
++
++    void DrawWings() const override;
++
++    void DrawTail() const override;
++};
++
+diff --git a/include/SBomber.h b/include/SBomber.h
+index 3ce1b9c..6ee541a 100644
+--- a/include/SBomber.h
++++ b/include/SBomber.h
+@@ -50,4 +50,4 @@ private:
+     uint64_t startTime, finishTime, passedTime;
+     uint16_t bombsNumber, deltaTime, fps;
+     int16_t score;
+-};
+\ No newline at end of file
++};
+diff --git a/src/Plane.cpp b/src/Plane.cpp
+index 221559e..26a6e86 100644
+--- a/src/Plane.cpp
++++ b/src/Plane.cpp
+@@ -7,13 +7,59 @@
+ 
+ void Plane::Draw() const
+ {
++    ScreenSingleton::getInstance().SetColor(CC_LightBlue);
++    DrawBody();
++    DrawWings();
++    DrawTail();
++
++//    ScreenSingleton::getInstance().SetColor(CC_LightBlue);
++//    ScreenSingleton::getInstance().GotoXY(x, y);
++//    std::cout << "=========>";
++//    ScreenSingleton::getInstance().GotoXY(x - 2, y - 1);
++//    std::cout << "===";
++//    ScreenSingleton::getInstance().GotoXY(x + 3, y - 1);
++//    std::cout << "\\\\\\\\";
++//    ScreenSingleton::getInstance().GotoXY(x + 3, y + 1);
++//    std::cout << "////";
++}
++
++
++void ColorPlane::DrawBody() const {
+     ScreenSingleton::getInstance().SetColor(CC_LightBlue);
+     ScreenSingleton::getInstance().GotoXY(x, y);
+     std::cout << "=========>";
+-    ScreenSingleton::getInstance().GotoXY(x - 2, y - 1);
+-    std::cout << "===";
++};
++
++void ColorPlane::DrawWings() const {
++    ScreenSingleton::getInstance().SetColor(CC_Yellow);
+     ScreenSingleton::getInstance().GotoXY(x + 3, y - 1);
+     std::cout << "\\\\\\\\";
+     ScreenSingleton::getInstance().GotoXY(x + 3, y + 1);
+     std::cout << "////";
+-}
++};
++
++void ColorPlane::DrawTail() const {
++    ScreenSingleton::getInstance().SetColor(CC_Green);
++    ScreenSingleton::getInstance().GotoXY(x - 2, y - 1);
++    std::cout << "===";
++};
++
++
++void BigPlane::DrawBody() const {
++    ScreenSingleton::getInstance().GotoXY(x, y);
++    std::cout << "=======";
++    ScreenSingleton::getInstance().GotoXY(x, y+1);
++    std::cout << "=========>";
++};
++
++void BigPlane::DrawWings() const {
++    ScreenSingleton::getInstance().GotoXY(x + 3, y - 1);
++    std::cout << "\\\\\\";
++    ScreenSingleton::getInstance().GotoXY(x + 3, y + 2);
++    std::cout << "///";
++};
++
++void BigPlane::DrawTail() const {
++    ScreenSingleton::getInstance().GotoXY(x - 2, y - 1);
++    std::cout << "===";
++};
+diff --git a/src/SBomber.cpp b/src/SBomber.cpp
+index 4c0eb99..83b05c0 100644
+--- a/src/SBomber.cpp
++++ b/src/SBomber.cpp
+@@ -10,12 +10,20 @@
+ #include <chrono>
+ #include <thread>
+ 
++#include <ctime>
++#include <cstdlib>
++
+ SBomber::SBomber()
+   : exitFlag(false), startTime(0), finishTime(0), deltaTime(0), passedTime(0),
+     fps(0), bombsNumber(10), score(0) {
+   MyTools::FileLoggerSingletone::getInstance().WriteToLog(std::string(__func__) + " was invoked");
+ 
+-  Plane* p = new Plane;
++  srand(time(0));
++  Plane* p;
++  if (rand()%2==0) p=new ColorPlane;
++  else p=new BigPlane;
++
++  //Plane* p = new Plane;
+   p->SetDirection(1, 0.1);
+   p->SetSpeed(4);
+   p->SetPos(5, 10);
